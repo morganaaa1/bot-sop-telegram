@@ -6,6 +6,10 @@ const ITEMS_PER_PAGE = 5;
 
 const listSopHandler = async (ctx) => {
   try {
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery().catch(() => {});
+    }
+
     // Ambil page dari callback data (contoh: list_page_0)
     const callbackData = ctx.callbackQuery.data;
     const page = parseInt(callbackData.split('_')[2]) || 0;
@@ -53,13 +57,22 @@ const listSopHandler = async (ctx) => {
     });
 
   } catch (err) {
+    if (err.description && err.description.includes('message is not modified')) {
+      return; // Abaikan error jika pesan/tombol yang diedit persis sama
+    }
     console.error(err);
-    await ctx.answerCbQuery('Terjadi kesalahan saat mengambil daftar SOP.');
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery('Terjadi kesalahan saat mengambil daftar SOP.').catch(() => {});
+    }
   }
 };
 
 const viewSopHandler = async (ctx) => {
   try {
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery().catch(() => {});
+    }
+
     const callbackData = ctx.callbackQuery.data;
     const sopId = callbackData.replace('view_sop_', '');
 
@@ -72,7 +85,7 @@ const viewSopHandler = async (ctx) => {
     if (error) throw error;
 
     if (!sop) {
-      return ctx.answerCbQuery('SOP tidak ditemukan.');
+      return ctx.answerCbQuery('SOP tidak ditemukan.').catch(() => {});
     }
 
     const htmlContent = formatSopDetail(sop);
@@ -91,8 +104,13 @@ const viewSopHandler = async (ctx) => {
       ...Markup.inlineKeyboard(buttons)
     });
   } catch (err) {
+    if (err.description && err.description.includes('message is not modified')) {
+      return; // Abaikan error jika konten persis sama
+    }
     console.error(err);
-    await ctx.answerCbQuery('Terjadi kesalahan saat memuat SOP.');
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery('Terjadi kesalahan saat memuat SOP.').catch(() => {});
+    }
   }
 };
 

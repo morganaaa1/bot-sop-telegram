@@ -124,20 +124,29 @@ const cancelActionHandler = async (ctx) => {
 
 const deleteSopHandler = async (ctx) => {
   if (!ctx.state.isAdmin) {
-    return ctx.answerCbQuery('Akses ditolak.');
+    return ctx.answerCbQuery('Akses ditolak.').catch(() => {});
   }
 
   const callbackData = ctx.callbackQuery.data;
   const sopId = callbackData.replace('del_sop_', '');
 
   try {
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery('SOP berhasil dihapus.').catch(() => {});
+    }
+
     const { error } = await supabase.from('sops').delete().eq('id', sopId);
     if (error) throw error;
 
     await ctx.editMessageText('SOP berhasil dihapus.', Markup.inlineKeyboard([[Markup.button.callback('Kembali ke Daftar', 'list_page_0')]]));
   } catch (err) {
+    if (err.description && err.description.includes('message is not modified')) {
+      return;
+    }
     console.error(err);
-    await ctx.answerCbQuery('Gagal menghapus SOP.');
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery('Gagal menghapus SOP.').catch(() => {});
+    }
   }
 };
 
