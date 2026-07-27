@@ -1,0 +1,99 @@
+const { Markup } = require('telegraf');
+const supabase = require('../config/supabase');
+const { formatSopDetail } = require('../utils/formatter');
+
+const ITEMS_PER_PAGE = 5;
+
+const listSopHandler = async (ctx) => {
+  try {
+    // Ambil page dari callback data (contoh: list_page_0)
+    const callbackData = ctx.callbackQuery.data;
+    const page = parseInt(callbackData.split('_')[2]) || 0;
+    
+    // Hitung offset
+    const offset = page * ITEMS_PER_PAGE;
+
+    // Fetch data dari Supabase
+    const { data: sops, error, count } = await supabase
+      .from('sops')
+      .select('id, title, category', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + ITEMS_PER_PAGE - 1);
+
+    if (error) throw error;
+
+    if (!sops || sops.length === 0) {
+      return ctx.editMessageText('Belum ada SOP yang tersimpan.', 
+        Markup.inlineKeyboard([[Markup.button.callback('🔙 Kembali ke Awal', 'action_home')]])
+      );
+    }
+
+    let text = `<b>Daftar SOP (Halaman ${page + 1}):</b>\n\n`;
+    const buttons = sops.map(sop => {
+      return [Markup.button.callback(`📖 ${sop.title}`, `view_sop_${sop.id}`)];
+    });
+
+    // Navigasi prev/next
+    const navButtons = [];
+    if (page > 0) {
+      navButtons.push(Markup.button.callback('⬅️ Prev', `list_page_${page - 1}`));
+    }
+    if (offset + ITEMS_PER_PAGE < count) {
+      navButtons.push(Markup.button.callback('Next ➡️', `list_page_${page + 1}`));
+    }
+    if (navButtons.length > 0) {
+      buttons.push(navButtons);
+    }
+
+    buttons.push([Markup.button.callback('🔙 Kembali ke Awal', 'action_home')]);
+
+    await ctx.editMessageText(text, {
+      parse_mode: 'HTML',
+      ...Markup.inlineKeyboard(buttons)
+    });
+
+  } catch (err) {
+    console.error(err);
+    await ctx.answerCbQuery('Terjadi kesalahan saat mengambil daftar SOP.');
+  }
+};
+
+const viewSopHandler = async (ctx) => {
+  try {
+    const callbackData = ctx.callbackQuery.data;
+    const sopId = callbackData.replace('view_sop_', '');
+
+    const { data: sop, error } = await supabase
+      .from('sops')
+      .select('*')
+      .eq('id', sopId)
+      .single();
+
+    if (error) throw error;
+
+    if (!sop) {
+      return ctx.answerCbQuery('SOP tidak ditemukan.');
+    }
+
+    const htmlContent = formatSopDetail(sop);
+
+    const buttons = [];
+    if (ctx.state.isAdmin) {
+      buttons.push([
+        Markup.button.callback('✏️ Edit', `edit_sop_${sopId}`),
+        Markup.button.callback('🗑️ Hapus', `del_sop_${sopId}`)
+      ]);
+    }
+    buttons.push([Markup.button.callback('🔙 Kembali ke Daftar', 'list_page_0')]);
+
+    await ctx.editMessageText(htmlContent, {
+      parse_mode: 'HTML',
+      ...Markup.inlineKeyboard(buttons)
+    });
+  } catch (err) {
+    console.error(err);
+    await ctx.answerCbQuery('Terjadi kesalahan saat memuat SOP.');
+  }
+};
+
+module.exports = { listSopHandler, viewSopHandler };
