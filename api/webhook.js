@@ -1,20 +1,24 @@
 const bot = require('../bot');
 
-// File ini menjadi entry point webhook untuk Vercel
-// Vercel Serverless Function format (Req, Res)
-export default async function handler(req, res) {
+// Entry point Webhook Vercel (CommonJS export)
+module.exports = async function handler(req, res) {
   try {
-    // Telegraf menyediakan fitur handleUpdate untuk memproses raw body dari Webhook Telegram
     if (req.method === 'POST') {
       await bot.handleUpdate(req.body, res);
       if (!res.headersSent) {
         res.status(200).send('OK');
       }
     } else {
-      res.status(200).send('Bot SOP Webhook Endpoint is active.');
+      res.status(200).json({
+        status: 'active',
+        service: 'Telegram Bot SOP Webhook Endpoint',
+        timestamp: new Date().toISOString()
+      });
     }
   } catch (err) {
     console.error('Error in Webhook:', err);
-    res.status(500).send('Error');
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message || 'Server Error' });
+    }
   }
-}
+};
