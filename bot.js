@@ -35,13 +35,15 @@ bot.action(/^select_cat_.+$/, selectCategoryHandler);
 // Urutan penting: Admin Input -> Search Input (Middleware akan mengecek state, jika bukan untuknya akan di `next()`)
 bot.on('text', handleAdminInput, handleSearchInput);
 
-// Eksekusi Bot
-bot.launch().then(() => {
-  console.log('Bot is running in Polling mode...');
-});
+// Eksekusi Bot (hanya jika dijalankan langsung via node bot.js / npm start, bukan saat di-import oleh Webhook Vercel)
+if (require.main === module) {
+  bot.launch().then(() => {
+    console.log('Bot is running in Polling mode...');
+  });
 
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  // Enable graceful stop
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}
 
 module.exports = bot; // Diexport untuk keperluan webhook nantinya (opsional)
